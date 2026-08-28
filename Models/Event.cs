@@ -1,12 +1,13 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Xml.Api.Models
 {
     public class Event
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.None)]
+        public Guid Id { get; set; }
+
+        [Required]
         public string IdSubg { get; set; } = string.Empty;
 
         [Required]

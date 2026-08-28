@@ -1,16 +1,21 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Xml;
+using Xml.Api.Services;
 
 namespace Xml.Api.Controllers
 {
 
 	public class HomeController(
-		IWebHostEnvironment env)
+		IWebHostEnvironment env,
+		XmlScheduleParserService parserService)
 		: Controller
 	{
 
 		private readonly IWebHostEnvironment _env = env;
-		private const long _maxFilesize = 10 * 1024 * 1024; // 10 МБ для защиты от DOS
+		private readonly XmlScheduleParserService _parserService = parserService;
+
+
+		private const long _maxFilesize = 10 * 1024 * 1024;
 		private readonly string _basePath = "C:\\TEMP\\rasp";
 
 
@@ -60,25 +65,8 @@ namespace Xml.Api.Controllers
 					await xmlFile.CopyToAsync(stream1);
 				}
 
-				using (var stream1 = new FileStream(
-					fullpath1,
-					FileMode.Open,
-					FileAccess.Read,
-					FileShare.Read,
-					4096,
-					useAsync: true))
-				{
-					var settings1 = new XmlReaderSettings
-					{
-						Async = true,
-						DtdProcessing = DtdProcessing.Prohibit
-					};
-					using var reader1 = XmlReader.Create(
-						stream1, settings1);
-					while (await reader1.ReadAsync())
-					{
-					}
-				}
+				await _parserService.ParseAndSaveAsync(fullpath1);
+
 			}
 			catch (XmlException)
 			{
