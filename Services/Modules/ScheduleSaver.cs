@@ -21,7 +21,7 @@ namespace Xml.Api.Services.Modules
             try
             {
                 await _context.Database.ExecuteSqlRawAsync(
-                    "TRUNCATE TABLE \"Events\", \"Preps\", \"Groups\", \"Discs\", \"Chairs\", \"Buildings\", \"BuildingsRooms\", \"EventToGroupRefs\", \"EventToPrepRefs\", \"EventToBuildingRoomRefs\" CASCADE;");
+                    "TRUNCATE TABLE \"Events\", \"Preps\", \"Groups\", \"Discs\", \"Chairs\", \"Buildings\", \"BuildingRooms\", \"EventToGroupRefs\", \"EventToPrepRefs\", \"EventToBuildingRoomRefs\" CASCADE;");
 
                 await _context.Buildings.AddRangeAsync(buildings);
                 await _context.Chairs.AddRangeAsync(chairs);
@@ -30,7 +30,7 @@ namespace Xml.Api.Services.Modules
                 await _context.Preps.AddRangeAsync(preps);
                 await _context.SaveChangesAsync();
 
-                await _context.BuildingsRooms.AddRangeAsync(rooms);
+                await _context.BuildingRooms.AddRangeAsync(rooms);
                 await _context.SaveChangesAsync();
 
                 var chairMap = chairs.ToDictionary(c => c.Name, c => c.Id);

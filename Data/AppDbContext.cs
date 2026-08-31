@@ -16,7 +16,7 @@ namespace Xml.Api.Data
         public DbSet<Disc> Discs { get; set; } = null!;
         public DbSet<Chair> Chairs { get; set; } = null!;
         public DbSet<Building> Buildings { get; set; } = null!;
-        public DbSet<BuildingRoom> BuildingsRooms { get; set; } = null!;
+        public DbSet<BuildingRoom> BuildingRooms { get; set; } = null!;
         public DbSet<Settings> Settings { get; set; } = null!;
         public DbSet<EventToGroupRef> EventToGroupRefs { get; set; } = null!;
         public DbSet<EventToPrepRef> EventToPrepRefs { get; set; } = null!;
