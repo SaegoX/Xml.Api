@@ -5,13 +5,13 @@ namespace Xml.Api.Services
 {
     public class XmlScheduleParserService
     {
-        private readonly XmlScheduleReader _reader;
+        private readonly ScheduleReader _reader;
         private readonly ScheduleMapper _mapper;
         private readonly ScheduleSaver _saver;
 
         public XmlScheduleParserService(AppDbContext context)
         {
-            _reader = new XmlScheduleReader();
+            _reader = new ScheduleReader();
             _mapper = new ScheduleMapper();
             _saver = new ScheduleSaver(context);
         }
@@ -19,8 +19,8 @@ namespace Xml.Api.Services
         public async Task ParseAndSaveAsync(string filePath)
         {
             var dtos = await _reader.ReadAsync(filePath);
-            var (chairs, discs, groups, preps, buildings, rooms, events) = _mapper.Map(dtos);
-            await _saver.SaveAsync(chairs, discs, groups, preps, buildings, rooms, events);
+            var (chairs, discs, groups, preps, buildings, rooms, rawDtos) = _mapper.Map(dtos);
+            await _saver.SaveAsync(chairs, discs, groups, preps, buildings, rooms, rawDtos);
         }
     }
 

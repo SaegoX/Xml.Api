@@ -5,8 +5,8 @@ namespace Xml.Api.Models
     public class Settings
     {
         [Key]
-        public string Key { get; set; } = string.Empty; 
-
-        public string Value { get; set; } = string.Empty; 
+        public int id { get; set; } 
+        public DateTime? DateRelease { get; set; }
+        public DateTime? DateImport { get; set; }
     }
 }

@@ -2,11 +2,11 @@
 
 namespace Xml.Api.Services.Modules
 {
-    public class XmlScheduleReader
+    public class ScheduleReader
     {
-        public async Task<IEnumerable<XmlSubjectDto>> ReadAsync(string filePath)
+        public async Task<IEnumerable<SubjectDto>> ReadAsync(string filePath)
         {
-            var subjects = new List<XmlSubjectDto>();
+            var subjects = new List<SubjectDto>();
             var settings = new XmlReaderSettings { Async = true, DtdProcessing = DtdProcessing.Prohibit };
 
             using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
@@ -16,7 +16,7 @@ namespace Xml.Api.Services.Modules
             {
                 if (reader.NodeType == XmlNodeType.Element && reader.Name == "subject")
                 {
-                    var dto = new XmlSubjectDto
+                    var dto = new SubjectDto
                     {
                         IdSubg = reader.GetAttribute("IDSubg") ?? "",
                         DiscName = reader.GetAttribute("disc") ?? "Не указано",

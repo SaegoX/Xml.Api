@@ -1,6 +1,6 @@
 ﻿namespace Xml.Api.Services.Modules
 {
-    public class XmlSubjectDto
+    public class SubjectDto
     {
         public string IdSubg { get; set; } = string.Empty;
         public string DiscName { get; set; } = string.Empty;

@@ -1,17 +1,20 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Xml.Api.Models
 {
     public class Prep
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.None)]
-        public string Id { get; set; } = string.Empty;
+        public int Id { get; set; }
 
+        public string? AisId { get; set; }
+        
         [Required]
-        public string Name { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string? Degree { get; set; }
+        public string? Data { get; set; }
+        public string? Prop { get; set; }
 
-        public ICollection<Event> Events { get; set; } = new List<Event>();
+        public ICollection<EventToPrepRef> EventRefs { get; set; } = new List<EventToPrepRef>();
     }
 }
