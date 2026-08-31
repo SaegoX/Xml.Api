@@ -66,9 +66,9 @@ namespace Xml.Api.Services.Modules
 
                 var lastUpdate = await _context.Settings.FirstOrDefaultAsync();
                 if (lastUpdate == null)
-                    await _context.Settings.AddAsync(new Settings { DateImport = DateTime.Now, DateRelease = DateTime.Now });
+                    await _context.Settings.AddAsync(new Settings { DateImport = DateTime.UtcNow, DateRelease = DateTime.UtcNow });
                 else
-                    lastUpdate.DateImport = DateTime.Now;
+                    lastUpdate.DateImport = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
