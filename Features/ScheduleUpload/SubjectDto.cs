@@ -1,4 +1,4 @@
-﻿namespace Xml.Api.Services.Modules
+﻿namespace Xml.Api.Features.ScheduleUpload
 {
     public class SubjectDto
     {

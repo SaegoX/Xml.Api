@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Xml.Api.Data;
-using Xml.Api.Services;
+using Xml.Api.Features.ScheduleUpload;
+using Xml.Api.Features.ScheduleUpload.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,7 +9,7 @@ var connectionString = builder.Configuration.GetConnectionString("AppDbConnectio
 builder.Services.AddDbContext<AppDbContext>(options =>
 	options.UseNpgsql(connectionString));
 
-builder.Services.AddScoped<XmlScheduleParserService>();
+builder.Services.AddScheduleUploadFeature();
 
 builder.Services.AddControllersWithViews();
 

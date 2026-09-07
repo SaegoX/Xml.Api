@@ -41,6 +41,7 @@ namespace Xml.Api.Data
                 .WithMany(c=>c.Events)
                 .HasForeignKey(e=>e.ChairId);
 
+            // Связи многие ко многим через промежуточные ссылки
             modelBuilder.Entity<EventToGroupRef>()
                 .HasOne(r => r.Event)
                 .WithMany(e => e.GroupRefs)

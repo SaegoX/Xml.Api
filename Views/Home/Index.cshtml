@@ -1,13 +1,101 @@
-﻿@using (Html.BeginForm("Upload", "Home", FormMethod.Post, new { enctype = "multipart/form-data" }))
-{
-	<div>
-		<label>Выберите XML-файл:</label>
-		<input type="file" name="xmlFile" accept=".xml" required />
-	</div>
-	<button type="submit">Загрузить</button>
+﻿@{
+    ViewData["Title"] = "Загрузка расписания";
 }
 
-@if (!string.IsNullOrEmpty(ViewBag.Message))
-{
-	<p>@ViewBag.Message</p>
-}
+<form id="uploadForm">
+    <div>
+        <label style="font-weight: bold; display: block; margin-bottom: 8px;">Выберите XML-файл:</label>
+        <input type="file" id="xmlFileInput" name="xmlFile" accept=".xml" required />
+    </div>
+    <button type="submit" id="submitBtn" style="margin-top: 12px; padding: 6px 12px; cursor: pointer;">Загрузить</button>
+</form>
+
+<!--Полоска загрузки-->
+<div id="progressContainer" style="display: none; margin-top: 20px; max-width: 400px;">
+    <progress id="progressBar" value="0" max="100" style="width: 100%; height: 20px;"></progress>
+    <p id="statusText" style="margin-top: 5px; font-size: 14px; color: #555;"></p>
+</div>
+
+<div id="resultMessage" style="margin-top: 15px; font-weight: bold;"></div>
+
+<script>
+    document.getElementById('uploadForm').addEventListener('submit', function(e){
+        e.preventDefault();// Блокировка перезагрузки страницы, для отображения прогресса загрузки
+
+        const fileInput = document.getElementById('xmlFileInput');
+        if (fileInput.files.length === 0) return;
+
+        const formData = new FormData();
+        formData.append("xmlFile", fileInput.files[0])
+
+        //Элементы интерфейса
+        const submitBtn = document.getElementById('submitBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const statusText = document.getElementById('statusText');
+        const resultMessage = document.getElementById('resultMessage')
+
+        submitBtn.disabled = true;
+        resultMessage.innerText = "";
+
+        progressContainer.style.display = "block";
+        progressBar.value = 0;
+        statusText.innerText = "Подготовка к отправке...";
+
+        // Используем XMLHttpRequest для отслеживания прогресса
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/Home/Upload", true);
+        //Таймаут на случай зависания приложения
+        xhr.timeout = 180000;
+
+        //Показывает прогресс загрузки на сервер
+        xhr.upload.onprogress = function (event) {
+            //Проверка на возможность вычесления размера файла
+            if (event.lengthComputable) {
+                const percentComplete = Math.round((event.loaded / event.total) * 100);
+
+            if (percentComplete < 100){
+                progressBar.value = percentComplete;
+                statusText.innerText = `Загрузка файла на сервер: ${percentComplete}%`;
+            } else {
+                    progressBar.removeAttribute('value'); // Удаление value превращает progress-bar в бегущую линию
+                    statusText.innerText = "Файл успешно загружен. Выполняется очистка таблиц и импорт расписания в базу данных...";
+                }
+            }
+        };
+
+        //Взаимодействие с бекендом
+        xhr.onload = function() {
+            submitBtn.disabled = false;
+            progressContainer.style.display = "none";
+
+            let response;
+            try {
+                response = JSON.parse(xhr.responseText);
+            } catch(e) {
+                response = {message: "Неизвестная ошибка сервера" };
+            }
+
+            if(xhr.status === 200) {
+                // Успешный импорт
+                resultMessage.innerText = response.message;
+                resultMessage.style.color = "green";
+                fileInput.value = ""; //Очистка поля выбора файла
+            } else {
+                // Неуспешный импорт
+                resultMessage.innerText = response.message;
+                resultMessage.style.color = "red";
+            }
+        };
+
+        //Обработка ошибки сети
+        xhr.onerror = function () {
+            submitBtn.disabled = false;
+            progressContainer.style.display = "none";
+            resultMessage.innerText = "Ошибка сети при отправке файла.";
+            resultMessage.style.color = "red";
+        };
+
+        xhr.send(formData);
+    });
+</script>
