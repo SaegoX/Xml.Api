@@ -29,7 +29,7 @@ namespace Xml.Api.Features.ScheduleUpload
             {
                 // Каскадно очищаем все таблицы. Последовательность не важна, всё удаляется каскадно(связно). TRUNCATE только очищает(не удаляет) таблицы.
                 await _context.Database.ExecuteSqlRawAsync(
-                    "TRUNCATE TABLE \"EventToGroupRefs\", \"EventToPrepRefs\", \"EventToBuildingRoomRefs\", \"Events\", \"BuildingRooms\", \"Buildings\", \"Preps\", \"Groups\", \"Discs\", \"Chairs\" CASCADE;");
+                    "TRUNCATE TABLE \"EventToGroupRefs\", \"EventToPrepRefs\", \"EventToBuildingRoomRefs\", \"Events\", \"BuildingRooms\", \"Buildings\", \"Preps\", \"Groups\", \"Discs\", \"Chairs\" RESTART IDENTITY CASCADE;");
 
                 // Заливаем первичные справочники
                 await _context.Buildings.AddRangeAsync(buildings);
