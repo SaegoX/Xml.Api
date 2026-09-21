@@ -21,27 +21,28 @@ namespace Xml.Api.Features.ScheduleUpload
             List<Prep> preps,
             List<Building> buildings,
             List<BuildingRoom> rooms,
-            List<SubjectDto> rawDtos)
+            List<SubjectDto> rawDtos,
+            CancellationToken cancellationToken)
         {
             // Открываем транзакцию. Если хоть один шаг упадет — база вернется в исходное состояние
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
                 // Каскадно очищаем все таблицы. Последовательность не важна, всё удаляется каскадно(связно). TRUNCATE только очищает(не удаляет) таблицы.
                 await _context.Database.ExecuteSqlRawAsync(
-                    "TRUNCATE TABLE \"EventToGroupRefs\", \"EventToPrepRefs\", \"EventToBuildingRoomRefs\", \"Events\", \"BuildingRooms\", \"Buildings\", \"Preps\", \"Groups\", \"Discs\", \"Chairs\" CASCADE;");
+                    "TRUNCATE TABLE \"EventToGroupRefs\", \"EventToPrepRefs\", \"EventToBuildingRoomRefs\", \"Events\", \"BuildingRooms\", \"Buildings\", \"Preps\", \"Groups\", \"Discs\", \"Chairs\" CASCADE;", cancellationToken);
 
                 // Заливаем первичные справочники
-                await _context.Buildings.AddRangeAsync(buildings);
-                await _context.Chairs.AddRangeAsync(chairs);
-                await _context.Discs.AddRangeAsync(discs);
-                await _context.Groups.AddRangeAsync(groups);
-                await _context.Preps.AddRangeAsync(preps);
-                await _context.SaveChangesAsync(); // Фиксируем, чтобы получить сгенерированные БД int ID
+                await _context.Buildings.AddRangeAsync(buildings, cancellationToken);
+                await _context.Chairs.AddRangeAsync(chairs, cancellationToken);
+                await _context.Discs.AddRangeAsync(discs, cancellationToken);
+                await _context.Groups.AddRangeAsync(groups, cancellationToken);
+                await _context.Preps.AddRangeAsync(preps, cancellationToken);
+                await _context.SaveChangesAsync(cancellationToken); // Фиксируем, чтобы получить сгенерированные БД int ID
 
                 // Заливаем комнаты (они связываются по ссылкам на объекты зданий из памяти)
-                await _context.BuildingRooms.AddRangeAsync(rooms);
-                await _context.SaveChangesAsync();
+                await _context.BuildingRooms.AddRangeAsync(rooms, cancellationToken);
+                await _context.SaveChangesAsync(cancellationToken);
 
 
                 // Строим словари быстрого поиска ID в памяти (работают за O(1) обращается сразу к переменной по его конкретному ключу, а не к O(n))
@@ -55,6 +56,23 @@ namespace Xml.Api.Features.ScheduleUpload
                 var events = new List<Event>();
                 foreach (var dto in rawDtos)
                 {
+                    //Защита на мелкие ошибки в файле
+                    if (!chairMap.TryGetValue(dto.ChairName, out int chairId))
+                        throw new InvalidOperationException($"Ошибка валидации XML: Кафедра '{dto.ChairName}' не найдена в реестре. Проверьте опечатки и пробелы. Пара IDSubg={dto.IdSubg}, Предмет='{dto.DiscName}'.");
+
+                    if (!discMap.TryGetValue(dto.DiscName, out int discId))
+                        throw new InvalidOperationException($"Ошибка валидации XML: Предмет '{dto.DiscName}' не найден в реестре. Пара IDSubg={dto.IdSubg}.");
+
+                    if (!groupMap.TryGetValue(dto.GroupId, out int groupId))
+                        throw new InvalidOperationException($"Ошибка валидации XML: Группа ID='{dto.GroupId}' ({dto.GroupName}) не найдена. Пара IDSubg={dto.IdSubg}.");
+
+                    if (!prepMap.TryGetValue(dto.PrepId, out int prepId))
+                        throw new InvalidOperationException($"Ошибка валидации XML: Преподаватель ID='{dto.PrepId}' ({dto.PrepName}) не найден. Пара IDSubg={dto.IdSubg}.");
+
+                    string roomKey = $"{dto.BuildingName}_{dto.RoomNumber}";
+                    if (!roomMap.TryGetValue(roomKey, out int roomId))
+                        throw new InvalidOperationException($"Ошибка валидации XML: Аудитория '{dto.RoomNumber}' в корпусе '{dto.BuildingName}' не найдена. Пара IDSubg={dto.IdSubg}.");
+
                     var ev = new Event
                     {
                         SubgId = dto.IdSubg,
@@ -69,31 +87,29 @@ namespace Xml.Api.Features.ScheduleUpload
                     // Наполняем навигационные свойства с помощью EF Core 
                     ev.GroupRefs.Add(new EventToGroupRef { GroupPtr = groupMap[dto.GroupId] });
                     ev.PrepRefs.Add(new EventToPrepRef { PrepPtr = prepMap[dto.PrepId] });
-
-                    string roomKey = $"{dto.BuildingName}_{dto.RoomNumber}";
                     ev.RoomRefs.Add(new EventToBuildingRoomRef { BuildingRoomPtr = roomMap[roomKey] });
 
                     events.Add(ev);
                 }
 
                 // Сохраняем события вместе со всеми внутренними коллекциями связей
-                await _context.Events.AddRangeAsync(events);
+                await _context.Events.AddRangeAsync(events, cancellationToken);
 
                 // Записываем время импорта в формате UTC(В postgres жёстко требуется именно UTC формат)
                 var lastUpdate = await _context.Settings
                     .OrderBy(s=>s.id)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync(cancellationToken);
                 if (lastUpdate == null)
-                    await _context.Settings.AddAsync(new Settings { DateImport = DateTime.UtcNow, DateRelease = DateTime.UtcNow });
+                    await _context.Settings.AddAsync(new Settings { DateImport = DateTime.UtcNow, DateRelease = DateTime.UtcNow }, cancellationToken);
                 else
                     lastUpdate.DateImport = DateTime.UtcNow;
 
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync(); // Подтверждаем транзакцию, если всё успешно
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken); // Подтверждаем транзакцию, если всё успешно
             }
             catch
             {
-                await transaction.RollbackAsync(); // Откатываем, если произошёл сбой
+                await transaction.RollbackAsync(CancellationToken.None);
                 throw;
             }
         }

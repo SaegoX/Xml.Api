@@ -1,13 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using Xml.Api.Data;
-using Xml.Api.Features.ScheduleUpload;
 using Xml.Api.Features.ScheduleUpload.Extensions;
+using Xml.Api.Features.ScheduleUpload.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("AppDbConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
 	options.UseNpgsql(connectionString));
+
+builder.Services.AddSignalR();
 
 builder.Services.AddScheduleUploadFeature();
 
@@ -42,6 +44,9 @@ app.UseRouting();
 
 app.MapStaticAssets();
 app.MapControllers().WithStaticAssets();
+
+app.MapHub<ScheduleHub>("/schedule-hub");
+
 app.MapDefaultControllerRoute();
 
 app.Run();
