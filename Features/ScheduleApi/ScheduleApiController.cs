@@ -10,14 +10,16 @@ using static Xml.Api.Features.ScheduleApi.ScheduleViewModels;
 
 namespace Xml.Api.Features.ScheduleApi
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class ScheduleApiController : ControllerBase
+    [Route("v1")]
+    [ApiExplorerSettings(GroupName = "rasp-v1")]
+    [ResponseCache(CacheProfileName = "D30")]
+    public class ScheduleApiController 
+        : ControllerBase
     {
         private readonly AppDbContext _db;
         private readonly RaspOptions _options;
 
-        // Стандартные названия дней недели для вывода в JSON
+        // Вывод дней недель в наш JSON
         private readonly string[] _dows = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
 
         /// <summary>
@@ -254,8 +256,13 @@ namespace Xml.Api.Features.ScheduleApi
         }
 
         /// <summary>
-        /// Внутренний метод сборки расписания (Умная версия). Отсекает архивные недели (например, Week == 1).
+        /// Возвращает актуальное расписание на неделю (оптимизированный универсальный метод)
         /// </summary>
+        /// <param name="groupAisId">id группы</param>
+        /// <param name="prepAisId">id преподавателя</param>
+        /// <param name="chairId">id кафедры</param>
+        /// <param name="roomId">id аудитории</param>
+        /// <returns></returns>
         private async Task<IEnumerable<DayModel>> _getRaspSmartAsync(int groupAisId, int prepAisId, int chairId, int roomId)
         {
             if (groupAisId < 1 && prepAisId < 1 && chairId < 1 && roomId < 1)

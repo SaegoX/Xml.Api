@@ -16,8 +16,8 @@ namespace Xml.Api.Features.ScheduleUpload.Infrastructure
         // Создаем неограниченный канал(очередь) для задач
         private readonly Channel<ScheduleJobTask> _channel = Channel.CreateUnbounded<ScheduleJobTask>(new UnboundedChannelOptions
         {
-            SingleReader = true, // Одиночное чтение от нашего воркера(однопоточный)
-            SingleWriter = false // Записываться в очередь могут все "задачи"
+            SingleReader = true, // Одиночное чтение от воркера(однопоточный)
+            SingleWriter = false // Записываться в очередь может больше одной задачи
         });
 
         /// <summary>
