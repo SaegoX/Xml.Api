@@ -3,12 +3,15 @@ using Xml.Api.Data;
 using Xml.Api.Features.ScheduleApi;
 using Xml.Api.Features.ScheduleUpload.Extensions;
 using Xml.Api.Features.ScheduleUpload.Infrastructure;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("AppDbConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
 	options.UseNpgsql(connectionString));
+
+builder.Services.AddOpenApi();
 
 builder.Services.AddSignalR();
 
@@ -39,6 +42,8 @@ if (!app.Environment.IsDevelopment())
 {
 	app.UseExceptionHandler("/Home/Error");
 	app.UseHsts();
+    app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 app.UseHttpsRedirection();
