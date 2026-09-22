@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Xml.Api.Data;
+using Xml.Api.Features.ScheduleApi;
 using Xml.Api.Features.ScheduleUpload.Extensions;
 using Xml.Api.Features.ScheduleUpload.Infrastructure;
 
@@ -14,6 +15,8 @@ builder.Services.AddSignalR();
 builder.Services.AddScheduleUploadFeature();
 
 builder.Services.AddControllersWithViews();
+
+builder.Services.Configure<RaspOptions>(builder.Configuration.GetSection("Rasp"));
 
 var app = builder.Build();
 
