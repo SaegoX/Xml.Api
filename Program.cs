@@ -4,6 +4,7 @@ using Xml.Api.Features.ScheduleApi;
 using Xml.Api.Features.ScheduleUpload.Extensions;
 using Xml.Api.Features.ScheduleUpload.Infrastructure;
 using Scalar.AspNetCore;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
