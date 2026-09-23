@@ -2,8 +2,10 @@
     ViewData["Title"] = "Загрузка расписания";
 }
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<!-- Локальный скрипт SignalR -->
+<script src="~/js/signalr.min.js"></script>
 
+<!-- Форма загрузки -->
 <form id="uploadForm">
     <div>
         <label style="font-weight: bold; display: block; margin-bottom: 8px;">Выберите XML-файл:</label>
@@ -12,15 +14,34 @@
     <button type="submit" id="submitBtn" style="margin-top: 12px; padding: 6px 12px; cursor: pointer;">Загрузить</button>
 </form>
 
+<!-- Контейнер единого прогресс-бара -->
 <div id="progressContainer" style="display: none; margin-top: 20px; max-width: 400px;">
     <progress id="progressBar" value="0" max="100" style="width: 100%; height: 20px;"></progress>
     <p id="statusText" style="margin-top: 5px; font-size: 14px; color: #555; font-weight: bold;"></p>
 </div>
 
+<!-- Блок вывода результата -->
 <div id="resultMessage" style="margin-top: 15px; font-weight: bold;"></div>
 
 <script>
     let signalrConnection = null;
+
+    window.addEventListener('DOMContentLoaded', function() {
+        // Проверяем, не осталась ли в памяти браузера активная задача
+        const savedJobId = localStorage.getItem('activeJobId');
+        if (savedJobId) {
+            const progressContainer = document.getElementById('progressContainer');
+            const submitBtn = document.getElementById('submitBtn');
+            const statusText = document.getElementById('statusText');
+
+            submitBtn.disabled = true;
+            progressContainer.style.display = "block";
+            statusText.innerText = "Восстановление соединения с фоновой задачей...";
+
+            // Восстанавливаем отслеживание SignalR и опрос статуса
+            startSignalR(savedJobId);
+        }
+    });
 
     document.getElementById('uploadForm').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -41,33 +62,49 @@
         resultMessage.innerText = "";
         progressContainer.style.display = "block";
         progressBar.value = 0;
-        statusText.innerText = "Загрузка файла на сервер...";
+        statusText.innerText = "Передача XML-файла на веб-сервер...";
 
         const xhr = new XMLHttpRequest();
         xhr.open("POST", "/Home/Upload", true);
 
+        xhr.upload.onprogress = function (event) {
+            if (event.lengthComputable) {
+                const netPercent = Math.round((event.loaded / event.total) * 100);
+                const totalPercent = Math.round(netPercent / 2);
+                progressBar.value = totalPercent;
+                statusText.innerText = `Передача XML-файла на веб-сервер... ${totalPercent}%`;
+            }
+        };
+
         xhr.onload = function() {
             if (xhr.status === 200) {
-                const response = JSON.parse(xhr.responseText);
-                const jobId = response.jobId;
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    const jobId = response.jobId;
 
-                statusText.innerText = "Файл успешно принят...";
+                    // СОХРАНЯЕМ ТОКЕН ЗАДАЧИ В ПАМЯТЬ БРАУЗЕРА (Защита от закрытия вкладки)
+                    localStorage.setItem('activeJobId', jobId);
 
-                startSignalR(jobId);
+                    progressBar.value = 50;
+                    statusText.innerText = "Файл принят сервером. Подключаемся к каналу базы данных... (50%)";
+
+                    startSignalR(jobId);
+                } catch (err) {
+                    console.error("Ошибка парсинга ответа Upload:", err);
+                    handleFinalResult(false, "Критическая ошибка формата JobId.");
+                }
             } else {
-                submitBtn.disabled = false;
-                progressContainer.style.display = "none";
-                const response = JSON.parse(xhr.responseText);
-                resultMessage.innerText = response.message || "Ошибка при загрузке файла.";
-                resultMessage.style.color = "red";
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    handleFinalResult(false, response.message || "Ошибка при загрузке файла.");
+                } catch(e) {
+                    handleFinalResult(false, "Внутренняя ошибка сервера при загрузке.");
+                }
             }
         };
 
         xhr.onerror = function() {
-            submitBtn.disabled = false;
-            progressContainer.style.display = "none";
-            resultMessage.innerText = "Ошибка сети при отправке файла.";
-            resultMessage.style.color = "red";
+            handleFinalResult(false, "Ошибка сети при отправке файла на сервер.");
         };
 
         xhr.send(formData);
@@ -76,65 +113,78 @@
     function startSignalR(jobId) {
         const progressBar = document.getElementById('progressBar');
         const statusText = document.getElementById('statusText');
-        const progressContainer = document.getElementById('progressContainer');
-        const resultMessage = document.getElementById('resultMessage');
-        const submitBtn = document.getElementById('submitBtn');
-        const fileInput = document.getElementById('xmlFileInput');
 
-        // Создаем подключение к хабу
         signalrConnection = new signalR.HubConnectionBuilder()
             .withUrl("/schedule-hub")
             .withAutomaticReconnect()
             .build();
 
-        // Слушаем живые проценты парсинга
         signalrConnection.on("ReceiveProgress", function (percent, status) {
             progressBar.value = percent;
             statusText.innerText = status;
         });
 
-        // Слушаем финал обработки
         signalrConnection.on("ReceiveResult", function (isSuccess, message) {
             handleFinalResult(isSuccess, message);
         });
 
-        // Вспомогательная функция для отрисовки финала
-        function handleFinalResult(isSuccess, message) {
-            submitBtn.disabled = false;
-            progressContainer.style.display = "none";
-            resultMessage.innerText = message;
-            resultMessage.style.color = isSuccess ? "green" : "red";
-            if (isSuccess) fileInput.value = "";
-
-            if (signalrConnection) {
-                signalrConnection.stop();
-            }
-        }
-
-        // Стартуем подключение
         signalrConnection.start()
             .then(function () {
-                await signalrConnection.invoke("Subscribe", jobId);
-                    .then(function() {
-                        // ОПТИМИЗАЦИЯ: Сразу после подписки опрашиваем бэкенд о текущем статусе.
-                        // Если воркер уже всё сделал — мы мгновенно заберем результат из памяти трекера!
-                        fetch(`/get-upload-status?jobId=${jobId}`)
-                            .then(response => response.json())
-                            .then(state => {
+                signalrConnection.invoke("SubscribeToJob", jobId)
+                    .then(async function() {
+                        try {
+                            const response = await fetch(`/get-upload-status?jobId=${jobId}`);
+                            if (response.ok) {
+                                const state = await response.json();
+
+                                // Если соединение восстановилось посреди процесса, сразу рисуем текущую бэкенд-позицию
+                                if (!state.isCompleted) {
+                                    progressBar.value = state.percent;
+                                    statusText.innerText = state.status;
+                                }
+
                                 if (state.isCompleted) {
-                                    // Если задача уже завершена, берем данные и гасим анимацию
                                     const isSuccess = !state.errorMessage;
                                     const msg = isSuccess ? state.status : `Ошибка: ${state.errorMessage}`;
                                     handleFinalResult(isSuccess, msg);
                                 }
-                            })
-                            .catch(err => console.error("Ошибка проверки статуса:", err));
+                            }
+                        } catch (err) {
+                            console.error("Ошибка проверки статуса задачи:", err);
+                        }
                     })
-                    .catch(err => console.error("Ошибка подписки на задачу:", err.toString()));
+                    .catch(err => console.error("Ошибка вызова SubscribeToJob:", err.toString()));
             })
             .catch(function (err) {
-                console.error("Not able to start SignalR:", err.toString());
-                statusText.innerText = "Ошибка подключения к каналу уведомлений.";
+                console.error("Не удалось запустить SignalR:", err.toString());
+                handleFinalResult(false, "Ошибка подключения к каналу живых уведомлений.");
             });
+    }
+
+    function handleFinalResult(isSuccess, message) {
+        const submitBtn = document.getElementById('submitBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const resultMessage = document.getElementById('resultMessage');
+        const statusText = document.getElementById('statusText');
+        const fileInput = document.getElementById('xmlFileInput');
+
+        // ОЧИЩАЕМ КЛЮЧ ЗАДАЧИ ПОСЛЕ ОКОНЧАНИЯ, чтобы при следующем заходе страница была пустой
+        localStorage.removeItem('activeJobId');
+
+        submitBtn.disabled = false;
+        progressContainer.style.display = "none";
+        statusText.innerText = "";
+
+        resultMessage.innerText = message;
+        resultMessage.style.color = isSuccess ? "green" : "red";
+
+        if (isSuccess) {
+            fileInput.value = "";
+        }
+
+        if (signalrConnection) {
+            signalrConnection.stop();
+            signalrConnection = null;
+        }
     }
 </script>

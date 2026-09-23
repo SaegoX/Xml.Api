@@ -13,10 +13,13 @@ namespace Xml.Api.Features.ScheduleUpload
         //Const#
 
         /// <summary>
-        /// Максимальный процент прогресса, который может выставить модуль чтения.
-        /// Оставшийся 10% зарезервированы за модулем сохранения в БД (Commit транзакции).
+        /// Начальный процент модуля чтения
         /// </summary>
-        private const int MaxReaderProgressPercent = 90;
+        private const int StartReaderPercent = 51;
+        /// <summary>
+        /// Максимальный процент прогресса
+        /// </summary>
+        private const int MaxReaderPercent = 85;
 
         /// <summary>
         /// Интервал времени в миллисекундах для отправки отчетов о прогрессе на фронтенд.
@@ -114,12 +117,13 @@ namespace Xml.Api.Features.ScheduleUpload
                     if (stopwatch.ElapsedMilliseconds >= ProgressReportIntervalMs && fileLength > 0)
                     {
                         int streamPercent = (int)((stream.Position * 100) / fileLength);
-                        int scaledPercent = (streamPercent * MaxReaderProgressPercent) / 100;
 
-                        if (scaledPercent > lastReportedPercent && scaledPercent <= MaxReaderProgressPercent)
+                        int scaledPercent = StartReaderPercent + ((streamPercent * (MaxReaderPercent - StartReaderPercent)) / 100);
+
+                        if (scaledPercent > lastReportedPercent && scaledPercent <= MaxReaderPercent)
                         {
                             lastReportedPercent = scaledPercent;
-                            await onProgress.Invoke(scaledPercent, $"Парсинг XML файла... ({scaledPercent}%)");
+                            await onProgress.Invoke(scaledPercent, $"Парсинг XML-структуры расписания... {scaledPercent}%");
                         }
 
                         stopwatch.Restart();
@@ -128,6 +132,7 @@ namespace Xml.Api.Features.ScheduleUpload
                 }
             }
 
+            await onProgress.Invoke(MaxReaderPercent, $"Файл успешно прочитан. Анализ структуры... {MaxReaderPercent}%");
             return subjects;
         }
     }
