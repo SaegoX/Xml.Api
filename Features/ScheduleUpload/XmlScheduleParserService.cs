@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using System.Net.NetworkInformation;
 using Xml.Api.Features.ScheduleUpload.Infrastructure;
 
 namespace Xml.Api.Features.ScheduleUpload
@@ -57,14 +58,21 @@ namespace Xml.Api.Features.ScheduleUpload
 
                 cancellationToken.ThrowIfCancellationRequested();
 
-                await ReportProgressAsync(92, "Индексация справочников и подготовка связей..");
+                await ReportProgressAsync(72, "Выделение уникальных кафедр и предметов...");
+                await Task.Delay(100, cancellationToken); // Микро-пауза для сглаживания
+
+                await ReportProgressAsync(76, "Индексация учебных групп и преподавателей...");
                 var (chairs, discs, groups, preps, buildings, rooms, rawDtos) = _mapper.Map(dtos);
+
+                await ReportProgressAsync(80, "Структурирование корпусов и аудиторий в памяти...");
+                await Task.Delay(100, cancellationToken);
 
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // Транзакционное сохранение
-                await ReportProgressAsync(96, "Очистка таблиц СУБД и пакетное сохранение расписания в PostgreSQL...");
-                await _saver.SaveAsync(chairs, discs, groups, preps, buildings, rooms, rawDtos, cancellationToken);
+                await _saver.SaveAsync(chairs, discs, groups, preps, buildings, rooms, rawDtos, async (percent, status) =>
+                {
+                    await ReportProgressAsync(percent, status);
+                }, cancellationToken);
 
                 //Финальный этап
                 _progressTracker.UpdateProgress(jobId, "Импорт успешно завершен!", 100, isCompleted: true);

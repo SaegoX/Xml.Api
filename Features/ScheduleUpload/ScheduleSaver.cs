@@ -11,6 +11,13 @@ namespace Xml.Api.Features.ScheduleUpload
     public class ScheduleSaver(AppDbContext context)
     {
         private readonly AppDbContext _context = context;
+
+        /// <summary>
+        /// Интервал процентов для модуля сохранения
+        /// </summary>
+        private const int StartSavePercent = 81;
+        private const int MaxSavePercent = 99;
+
         /// <summary>
         /// Очищает старые таблицы и сохраняет новые данные в рамках единой транзакции
         /// </summary>
@@ -22,12 +29,15 @@ namespace Xml.Api.Features.ScheduleUpload
             List<Building> buildings,
             List<BuildingRoom> rooms,
             List<SubjectDto> rawDtos,
+            Func<int, string, Task> onProgress,
             CancellationToken cancellationToken)
         {
             // Открываем транзакцию. Если хоть один шаг упадет — база вернется в исходное состояние
             using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
+                await onProgress.Invoke(StartSavePercent, $"Очистка старых данных в PostgreSQL... ({StartSavePercent}%)");
+
                 // Каскадно очищаем все таблицы. Последовательность не важна, всё удаляется каскадно(связно). TRUNCATE только очищает(не удаляет) таблицы.
                 await _context.Database.ExecuteSqlRawAsync(
                     "TRUNCATE TABLE \"EventToGroupRefs\", \"EventToPrepRefs\", \"EventToBuildingRoomRefs\", \"Events\", \"BuildingRooms\", \"Buildings\", \"Preps\", \"Groups\", \"Discs\", \"Chairs\" RESTART IDENTITY CASCADE;", cancellationToken);
@@ -54,9 +64,14 @@ namespace Xml.Api.Features.ScheduleUpload
                 var prepMap = preps.ToDictionary(p => p.AisId!, p => p.Id);
                 var roomMap = rooms.ToDictionary(r => $"{r.Building.Name}_{r.Name}", r => r.Id);
 
-                var events = new List<Event>();
-                foreach (var dto in rawDtos)
+                var eventsBatch = new List<Event>();
+                const int batchSize = 1000;
+
+                for (int i = 0; i < rawDtos.Count; i++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var dto = rawDtos[i];
+
                     //Защита на мелкие ошибки в файле
                     if (!chairMap.TryGetValue(dto.ChairName, out int chairId))
                         throw new InvalidOperationException($"Ошибка валидации XML: Кафедра '{dto.ChairName}' не найдена в реестре. Проверьте опечатки и пробелы. Пара IDSubg={dto.IdSubg}, Предмет='{dto.DiscName}'.");
@@ -81,8 +96,8 @@ namespace Xml.Api.Features.ScheduleUpload
                         Week = dto.Week,
                         Day = dto.Day,
                         Less = dto.Less,
-                        ChairId = chairMap[dto.ChairName],
-                        DiscId = discMap[dto.DiscName]
+                        ChairId = chairId,
+                        DiscId = discId
                     };
 
                     // Наполняем навигационные свойства с помощью EF Core 
@@ -90,27 +105,39 @@ namespace Xml.Api.Features.ScheduleUpload
                     ev.PrepRefs.Add(new EventToPrepRef { PrepPtr = prepMap[dto.PrepId] });
                     ev.RoomRefs.Add(new EventToBuildingRoomRef { BuildingRoomPtr = roomMap[roomKey] });
 
-                    events.Add(ev);
+                    eventsBatch.Add(ev);
+                    if (eventsBatch.Count >= batchSize || i == rawDtos.Count - 1)
+                    {
+                        await _context.Events.AddRangeAsync(eventsBatch, cancellationToken);
+                        await _context.SaveChangesAsync(cancellationToken);
+                        _context.ChangeTracker.Clear();
+                        eventsBatch.Clear();
+
+                        int currentSavePercent = (i * 100) / rawDtos.Count;
+                        int scaledSavePercent = StartSavePercent + ((currentSavePercent * (MaxSavePercent - StartSavePercent)) / 100);
+
+                        await onProgress.Invoke(scaledSavePercent, $"Сохранение записей расписания в PostgreSQL... ({scaledSavePercent}%)");
+                    }
                 }
 
-                // Сохраняем события вместе со всеми внутренними коллекциями связей
-                await _context.Events.AddRangeAsync(events, cancellationToken);
-
-                // Записываем время импорта в формате UTC(В postgres жёстко требуется именно UTC формат)
                 var lastUpdate = await _context.Settings
-                    .OrderBy(s=>s.id)
+                    .OrderBy(s => s.id)
                     .FirstOrDefaultAsync(cancellationToken);
+
                 if (lastUpdate == null)
                     await _context.Settings.AddAsync(new Settings { DateImport = DateTime.UtcNow, DateRelease = DateTime.UtcNow }, cancellationToken);
                 else
+                {
+                    _context.Entry(lastUpdate).State = EntityState.Modified;
                     lastUpdate.DateImport = DateTime.UtcNow;
+                }
 
                 await _context.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken); // Подтверждаем транзакцию, если всё успешно
+                await transaction.CommitAsync(CancellationToken.None);
             }
             catch
             {
-                await transaction.RollbackAsync(CancellationToken.None);
+                await transaction.RollbackAsync(CancellationToken.None); 
                 throw;
             }
         }
