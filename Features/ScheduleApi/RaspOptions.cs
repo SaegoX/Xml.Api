@@ -7,6 +7,5 @@ namespace Xml.Api.Features.ScheduleApi
         public string Title { get; set; } = string.Empty;
         public int WeekOffset { get; set; }
         public List<LessonTimeConfig> Lessons { get; set; } = new();
-
     }
 }
