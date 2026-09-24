@@ -67,7 +67,7 @@
         const xhr = new XMLHttpRequest();
         xhr.open("POST", "/Home/Upload", true);
 
-        xhr.upload.onprogress = function (event) {
+        xhr.upload.onprogress = function(event) {
             if (event.lengthComputable) {
                 const netPercent = Math.round((event.loaded / event.total) * 100);
                 const totalPercent = Math.round(netPercent / 2);
@@ -97,7 +97,7 @@
                 try {
                     const response = JSON.parse(xhr.responseText);
                     handleFinalResult(false, response.message || "Ошибка при загрузке файла.");
-                } catch(e) {
+                } catch (e) {
                     handleFinalResult(false, "Внутренняя ошибка сервера при загрузке.");
                 }
             }
@@ -119,43 +119,50 @@
             .withAutomaticReconnect()
             .build();
 
-        signalrConnection.on("ReceiveProgress", function (percent, status) {
+        signalrConnection.on("ReceiveProgress", function(percent, status) {
             progressBar.value = percent;
             statusText.innerText = status;
         });
 
-        signalrConnection.on("ReceiveResult", function (isSuccess, message) {
+        signalrConnection.on("ReceiveResult", function(isSuccess, message) {
             handleFinalResult(isSuccess, message);
         });
 
         signalrConnection.start()
-            .then(function () {
+            .then(function() {
                 signalrConnection.invoke("SubscribeToJob", jobId)
                     .then(async function() {
                         try {
                             const response = await fetch(`/get-upload-status?jobId=${jobId}`);
-                            if (response.ok) {
-                                const state = await response.json();
 
-                                // Если соединение восстановилось посреди процесса, сразу рисуем текущую бэкенд-позицию
-                                if (!state.isCompleted) {
-                                    progressBar.value = state.percent;
-                                    statusText.innerText = state.status;
-                                }
+                            // ЕСЛИ СЕРВЕР ПЕРЕЗАПУСКАЛСЯ: бэкенд вернет ошибку (задачи нет в RAM)
+                            if (!response.ok) {
+                                console.warn("Фоновая задача не найдена на сервере. Сбрасываем сессию.");
+                                handleFinalResult(false, "Предыдущая фоновая сессия импорта была сброшена из-за перезапуска сервера.");
+                                return;
+                            }
 
-                                if (state.isCompleted) {
-                                    const isSuccess = !state.errorMessage;
-                                    const msg = isSuccess ? state.status : `Ошибка: ${state.errorMessage}`;
-                                    handleFinalResult(isSuccess, msg);
-                                }
+                            const state = await response.json();
+
+                            if (!state.isCompleted) {
+                                progressBar.value = state.percent;
+                                statusText.innerText = state.status;
+                            }
+
+                            if (state.isCompleted) {
+                                const isSuccess = !state.errorMessage;
+                                const msg = isSuccess ? state.status : `Ошибка: ${state.errorMessage}`;
+                                handleFinalResult(isSuccess, msg);
                             }
                         } catch (err) {
                             console.error("Ошибка проверки статуса задачи:", err);
+                            // Страховка при сбое сети: даем администратору шанс загрузить заново
+                            handleFinalResult(false, "Не удалось восстановить связь с задачей. Попробуйте выполнить импорт заново.");
                         }
                     })
                     .catch(err => console.error("Ошибка вызова SubscribeToJob:", err.toString()));
             })
-            .catch(function (err) {
+            .catch(function(err) {
                 console.error("Не удалось запустить SignalR:", err.toString());
                 handleFinalResult(false, "Ошибка подключения к каналу живых уведомлений.");
             });
