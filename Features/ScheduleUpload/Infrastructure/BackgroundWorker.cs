@@ -34,7 +34,7 @@
 
                     using (var scope = _scopeFactory.CreateScope())
                     {
-                        var parserService = scope.ServiceProvider.GetRequiredService<ParserOrecstratorService>();
+                        var parserService = scope.ServiceProvider.GetRequiredService<ImportOrchestrator>();
 
                         bool isSuccess = await parserService.ParseAndSaveAsync(task.FilePath, task.JobId, stoppingToken);
 

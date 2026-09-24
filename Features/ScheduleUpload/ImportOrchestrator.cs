@@ -7,29 +7,19 @@ namespace Xml.Api.Features.ScheduleUpload
     /// Фасад(Оркестратор) процесса импорта расписания
     /// Внедряет и координирует работу всех наших модулей реактивно в SignalR
     /// </summary>
-    public class ParserOrecstratorService
+    public class ImportOrchestrator(
+        Reader reader,
+        Mapper mapper,
+        Saver saver,
+        IHubContext<ScheduleHub> hubContext,
+        UploadProgressTracker progressTracker)
     {
         // Внедрение через конструктор
-        private readonly Reader _reader;
-        private readonly Mapper _mapper;
-        private readonly Saver _saver;
-        private readonly IHubContext<ScheduleHub> _hubContext;
-        private readonly UploadProgressTracker _progressTracker;
-
-        // Регистрация модулей
-        public ParserOrecstratorService(
-            Reader reader,
-            Mapper mapper,
-            Saver saver,
-            IHubContext<ScheduleHub> hubContext,
-            UploadProgressTracker progressTracker)
-        {
-            _reader = reader;
-            _mapper = mapper;
-            _saver = saver;
-            _hubContext = hubContext;
-            _progressTracker = progressTracker;
-        }
+        private readonly Reader _reader = reader;
+        private readonly Mapper _mapper = mapper;
+        private readonly Saver _saver = saver;
+        private readonly IHubContext<ScheduleHub> _hubContext = hubContext;
+        private readonly UploadProgressTracker _progressTracker = progressTracker;
 
         /// <summary>
         /// Запускает полный цикл импорта XML файла в базу данных.
@@ -44,7 +34,7 @@ namespace Xml.Api.Features.ScheduleUpload
             {
                 _progressTracker.UpdateProgress(jobId, status1, percent1);
 
-                await _hubContext.Clients.Group(jobId).SendAsync("ReceiveProgress", percent1, status1);
+                await _hubContext.Clients.Group(jobId).SendAsync("ReceiveProgress", percent1, status1, cancellationToken: cancellationToken);
             }
 
             try
@@ -75,14 +65,14 @@ namespace Xml.Api.Features.ScheduleUpload
 
                 //Финальный этап
                 _progressTracker.UpdateProgress(jobId, "Импорт успешно завершен!", 100, isCompleted: true);
-                await _hubContext.Clients.Group(jobId).SendAsync("ReceiveResult", true, "Расписание успешно импортировано в базу данных!");
+                await _hubContext.Clients.Group(jobId).SendAsync("ReceiveResult", true, "Расписание успешно импортировано в базу данных!", cancellationToken: cancellationToken);
 
                 return true;
             }
             catch (OperationCanceledException)// Проверка на cancellation, чтобы отмена не вызывала ошибку
             {
                 _progressTracker.UpdateProgress(jobId, "Операция отменена пользователем", 0, isCompleted: true, errorMessage: "Отмена");
-                await _hubContext.Clients.Group(jobId).SendAsync("ReceiveResult", false, "Операция импорта была отменена пользователем.");
+                await _hubContext.Clients.Group(jobId).SendAsync("ReceiveResult", false, "Операция импорта была отменена пользователем.", cancellationToken: cancellationToken);
 
                 // Удаляем временный файл с диска, если он остался
                 if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath);
@@ -91,7 +81,7 @@ namespace Xml.Api.Features.ScheduleUpload
             catch (Exception ex)//Проверка на сторонние ошибки
             {
                 _progressTracker.UpdateProgress(jobId, "Критическая ошибка импорта", 0, isCompleted: true, errorMessage: ex.Message);
-                await _hubContext.Clients.Group(jobId).SendAsync("ReceiveResult", false, $"Критическая ошибка при обработке: {ex.Message}");
+                await _hubContext.Clients.Group(jobId).SendAsync("ReceiveResult", false, $"Критическая ошибка при обработке: {ex.Message}", cancellationToken: cancellationToken);
 
                 if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath);
                 return false;

@@ -3,13 +3,8 @@ using Xml.Api.Models;
 
 namespace Xml.Api.Data
 {
-    public class AppDbContext : DbContext
+    public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options)
-            : base(options)
-        {
-        }
-
         public DbSet<Event> Events { get; set; } = null!;
         public DbSet<Prep> Preps { get; set; } = null!;
         public DbSet<Group> Groups { get; set; } = null!;

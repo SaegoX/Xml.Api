@@ -17,7 +17,7 @@ namespace Xml.Api.Features.ScheduleUpload.Options
             services.AddScoped<Reader>();
             services.AddScoped<Mapper>();
             services.AddScoped<Saver>();
-            services.AddScoped<ParserOrecstratorService>();
+            services.AddScoped<ImportOrchestrator>();
 
             return services;
         }
