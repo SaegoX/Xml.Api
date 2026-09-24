@@ -8,7 +8,7 @@ namespace Xml.Api.Features.ScheduleUpload
     /// Модуль сохранения данных в СУБД, через транзакцию
     /// Отвечает за полную очистку старого расписания и атомарную запись новых сущностей
     /// </summary>
-    public class ScheduleSaver(AppDbContext context)
+    public class Saver(AppDbContext context)
     {
         private readonly AppDbContext _context = context;
 

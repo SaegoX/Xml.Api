@@ -1,4 +1,4 @@
-﻿namespace Xml.Api.Features.ScheduleUpload.Extensions
+﻿namespace Xml.Api.Features.ScheduleUpload.Options
 {
     /// <summary>
     /// Кастомный метод расширения, который либо возвращает существующее значение, либо если его нет создаёт.(аналог ConcurrentDictionary.GetOrAdd, но для словаря)

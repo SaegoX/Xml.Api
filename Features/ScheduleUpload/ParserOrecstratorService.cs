@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using System.Net.NetworkInformation;
 using Xml.Api.Features.ScheduleUpload.Infrastructure;
 
 namespace Xml.Api.Features.ScheduleUpload
@@ -8,20 +7,20 @@ namespace Xml.Api.Features.ScheduleUpload
     /// Фасад(Оркестратор) процесса импорта расписания
     /// Внедряет и координирует работу всех наших модулей реактивно в SignalR
     /// </summary>
-    public class XmlScheduleParserService
+    public class ParserOrecstratorService
     {
         // Внедрение через конструктор
-        private readonly ScheduleReader _reader;
-        private readonly ScheduleMapper _mapper;
-        private readonly ScheduleSaver _saver;
+        private readonly Reader _reader;
+        private readonly Mapper _mapper;
+        private readonly Saver _saver;
         private readonly IHubContext<ScheduleHub> _hubContext;
         private readonly UploadProgressTracker _progressTracker;
 
         // Регистрация модулей
-        public XmlScheduleParserService(
-            ScheduleReader reader,
-            ScheduleMapper mapper,
-            ScheduleSaver saver,
+        public ParserOrecstratorService(
+            Reader reader,
+            Mapper mapper,
+            Saver saver,
             IHubContext<ScheduleHub> hubContext,
             UploadProgressTracker progressTracker)
         {

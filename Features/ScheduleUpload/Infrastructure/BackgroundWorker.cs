@@ -4,16 +4,16 @@
     /// Фоновая служба
     /// Бесконечно слушает очередь задач в фоновом потоке сервера и поочередно обрабатывает XML-файлы.
     /// </summary>
-    public class ScheduleBackgroundWorker : BackgroundService
+    public class BackgroundWorker : BackgroundService
     {
         private readonly BackgroundQueue _queue;
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly ILogger<ScheduleBackgroundWorker> _logger;
+        private readonly ILogger<BackgroundWorker> _logger;
 
-        public ScheduleBackgroundWorker(
+        public BackgroundWorker(
             BackgroundQueue queue,
             IServiceScopeFactory scopeFactory,
-            ILogger<ScheduleBackgroundWorker> logger)
+            ILogger<BackgroundWorker> logger)
         {
             _queue = queue;
             _scopeFactory = scopeFactory;
@@ -34,7 +34,7 @@
 
                     using (var scope = _scopeFactory.CreateScope())
                     {
-                        var parserService = scope.ServiceProvider.GetRequiredService<XmlScheduleParserService>();
+                        var parserService = scope.ServiceProvider.GetRequiredService<ParserOrecstratorService>();
 
                         bool isSuccess = await parserService.ParseAndSaveAsync(task.FilePath, task.JobId, stoppingToken);
 

@@ -1,8 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using Xml.Api.Data;
-using Xml.Api.Features.ScheduleApi;
-using Xml.Api.Features.ScheduleUpload.Extensions;
+using Xml.Api.Features.ScheduleUpload.Options;
 using Xml.Api.Features.ScheduleUpload.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -38,12 +37,15 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
 {
-	app.UseExceptionHandler("/Home/Error");
-	app.UseHsts();
     app.MapOpenApi();
     app.MapScalarApiReference();
+}
+else
+{
+    app.UseExceptionHandler("/Home/Error");
+    app.UseHsts();
 }
 
 app.UseHttpsRedirection();

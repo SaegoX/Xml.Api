@@ -7,7 +7,7 @@ namespace Xml.Api.Features.ScheduleUpload
     /// Модуль потокового чтения XML-файла расписания.
     /// Отвечает за парсинг сырого XML в плоские структуры DTO.
     /// </summary>
-    public class ScheduleReader
+    public class Reader
     {
 
         //Const#

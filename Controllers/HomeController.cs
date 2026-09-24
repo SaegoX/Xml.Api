@@ -1,7 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Collections;
-using System.Xml;
-using Xml.Api.Features.ScheduleUpload;
 using Xml.Api.Features.ScheduleUpload.Infrastructure;
 
 namespace Xml.Api.Controllers

@@ -1,6 +1,6 @@
 ﻿using Xml.Api.Features.ScheduleUpload.Infrastructure;
 
-namespace Xml.Api.Features.ScheduleUpload.Extensions
+namespace Xml.Api.Features.ScheduleUpload.Options
 {
     /// <summary>
     /// Класс расширения для лаконичной регистрации всех модулей фичи загрузки расписания(фасад)
@@ -12,12 +12,12 @@ namespace Xml.Api.Features.ScheduleUpload.Extensions
             services.AddSingleton<UploadProgressTracker>();
             services.AddSingleton<BackgroundQueue>();
 
-            services.AddHostedService<ScheduleBackgroundWorker>();
+            services.AddHostedService<BackgroundWorker>();
 
-            services.AddScoped<ScheduleReader>();
-            services.AddScoped<ScheduleMapper>();
-            services.AddScoped<ScheduleSaver>();
-            services.AddScoped<XmlScheduleParserService>();
+            services.AddScoped<Reader>();
+            services.AddScoped<Mapper>();
+            services.AddScoped<Saver>();
+            services.AddScoped<ParserOrecstratorService>();
 
             return services;
         }

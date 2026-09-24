@@ -1,5 +1,5 @@
 ﻿using Xml.Api.Models;
-using Xml.Api.Features.ScheduleUpload.Extensions;
+using Xml.Api.Features.ScheduleUpload.Options;
 
 namespace Xml.Api.Features.ScheduleUpload
 {
@@ -7,7 +7,7 @@ namespace Xml.Api.Features.ScheduleUpload
     /// Модуль маппинга данных.
     /// Отвечает за cоздание справочников из списка DTO.
     /// </summary>
-    public class ScheduleMapper
+    public class Mapper
     {
         /// <summary>
         /// Нормализует плоский список занятий(SubjectDto) в справочники сущностей.
